@@ -1,0 +1,44 @@
+body {
+  font-family: Arial, sans-serif;
+  background-color: #bffbff;
+  margin: 0;
+  display: flex;
+  justify-content: center; /* 수평 중앙 */
+  align-items: flex-start; /* 위에서 시작 */
+  min-height: 100vh;
+  padding: 20px;
+}
+
+.container {
+  max-width: 800px;  /* 전체 폭 제한 */
+  width: 100%;
+  text-align: center; /* 제목 중앙 정렬 */
+}
+
+h2 {
+  font-size: 2rem;
+  margin-bottom: 30px;
+}
+
+.card {
+  background: white;
+  padding: 20px;
+  margin: 20px 0;
+  border-radius: 12px;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.1); /* 카드 그림자 */
+  text-align: left; /* 카드 내부는 왼쪽 정렬 */
+}
+
+.card h3 {
+  margin-top: 0;
+}
+
+ul {
+  list-style-type: disc;
+  padding-left: 20px;
+}
+
+li {
+  margin: 8px 0;
+  line-height: 1.6;
+}
