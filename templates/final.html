@@ -1,12 +1,10 @@
-<<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="ko">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>{{ title }}</title>
-  <!-- Tailwind CSS 로드 -->
   <script src="https://cdn.tailwindcss.com"></script>
-  <!-- Noto Sans KR 폰트 로드 -->
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
   
   <style>
@@ -14,48 +12,71 @@
     body {
       font-family: 'Noto Sans KR', sans-serif;
     }
+    /* 모달이 항상 중앙에 오도록 스타일 추가 */
+    #item-modal {
+        max-width: 90%; 
+        width: 448px; /* max-w-md */
+    }
   </style>
 </head>
 <body class="bg-gray-100 min-h-screen">
 
   <div class="max-w-md mx-auto bg-white shadow-lg rounded-lg overflow-hidden min-h-screen">
     
-    <!-- 1. 위치 기반 정보 (헤더) -->
     <header class="p-4 bg-emerald-600 text-white shadow-md">
       <h1 class="text-2xl font-bold text-center mb-2">♻️ 스마트 분리수거</h1>
       
-      <!-- 기능 1: 위치 정보가 표시될 영역 -->
       <div id="location-info-display" class="bg-emerald-700 p-3 rounded-lg text-sm min-h-[50px]">
         <p class="text-center">🔄 📍 현재 위치의 분리수거 정보를 불러오는 중...</p>
       </div>
     </header>
 
     <main class="p-4">
-      <!-- (기존 p 태그 2개 삭제) -->
-      <!-- 기능 2: 카테고리별 가이드 섹션 -->
       <section id="guide-section" class="space-y-4">
         <h2 class="text-xl font-semibold text-gray-800">분리배출 가이드</h2>
         
-        <!-- 카테고리 그리드 -->
         <div id="category-grid" class="grid grid-cols-3 gap-3">
-          <!-- JS로 카테고리 버튼이 채워질 영역 -->
           <p class="text-gray-500 col-span-3">가이드 정보를 불러오는 중...</p>
         </div>
 
-        <!-- 하위 항목 리스트 (처음엔 숨김) -->
         <div id="item-list-container" class="hidden space-y-2">
-          <!-- JS로 하위 항목이 채워질 영역 -->
-        </div>
+          </div>
       </section>
+      
+      <hr class="my-6 border-gray-200" />
+      
+      <section id="chatbot-section" class="space-y-4">
+        <h2 class="text-xl font-semibold text-gray-800">📸 이미지로 물품 분석 (챗봇)</h2>
+        
+        <div class="flex flex-col space-y-3">
+          <input type="file" id="camera-input" accept="image/*" capture="environment" class="hidden" />
+          
+          <button id="open-camera-btn" class="w-full bg-blue-500 text-white py-3 rounded-lg font-semibold hover:bg-blue-600 transition shadow">
+            📸 카메라/갤러리 열기
+          </button>
+          
+          <div id="image-preview-container" class="hidden bg-gray-200 rounded-lg p-2 flex justify-center items-center min-h-[150px]">
+            <img id="image-preview" class="max-h-60 rounded-lg object-contain" alt="선택된 이미지 미리보기" />
+          </div>
+          
+          <button id="analyze-btn" class="w-full bg-emerald-500 text-white py-3 rounded-lg font-semibold hover:bg-emerald-600 transition shadow hidden" disabled>
+            ✨ 분리수거 방법 분석하기
+          </button>
+        </div>
+
+        <div id="chatbot-response-container" class="bg-gray-50 p-4 rounded-lg shadow-inner min-h-[100px]">
+          <p class="text-gray-500 text-sm">이미지를 선택하고 '분석하기' 버튼을 눌러주세요.</p>
+          </div>
+      </section>
+
+
     </main>
 
   </div>
 
-  <!-- 기능 2: 상세설명 모달 (Dialog) -->
   <dialog id="item-modal" class="max-w-md mx-auto p-0 rounded-lg shadow-xl backdrop:bg-black/50 w-11/12">
     <div class="p-5">
       <h3 id="modal-title" class="text-lg font-bold text-emerald-700"></h3>
-      <!-- whitespace-pre-wrap: \n (줄바꿈)을 인식하게 함 -->
       <p id="modal-description" class="mt-2 text-sm text-gray-600 whitespace-pre-wrap"></p>
       <button id="modal-close-btn" class="mt-4 w-full bg-emerald-600 text-white py-2 rounded-lg font-semibold hover:bg-emerald-700">
         닫기
@@ -63,7 +84,6 @@
     </div>
   </dialog>
 
-  <!-- JS 파일 로드 (body 닫기 직전) -->
   <script src="{{ url_for('static', filename='scripts/main.js') }}"></script>
 </body>
 </html>
