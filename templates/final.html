@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<<!DOCTYPE html>
 <html lang="ko">
 <head>
   <meta charset="UTF-8" />
@@ -31,11 +31,37 @@
     </header>
 
     <main class="p-4">
-      <p class="text-gray-600 text-center">지역별 분리수거 정보가 상단에 표시됩니다.</p>
-      <p class="text-gray-500 text-center text-sm mt-4">(기능 2: 카테고리별 가이드는 여기에 추가될 예정입니다.)</p>
+      <!-- (기존 p 태그 2개 삭제) -->
+      <!-- 기능 2: 카테고리별 가이드 섹션 -->
+      <section id="guide-section" class="space-y-4">
+        <h2 class="text-xl font-semibold text-gray-800">분리배출 가이드</h2>
+        
+        <!-- 카테고리 그리드 -->
+        <div id="category-grid" class="grid grid-cols-3 gap-3">
+          <!-- JS로 카테고리 버튼이 채워질 영역 -->
+          <p class="text-gray-500 col-span-3">가이드 정보를 불러오는 중...</p>
+        </div>
+
+        <!-- 하위 항목 리스트 (처음엔 숨김) -->
+        <div id="item-list-container" class="hidden space-y-2">
+          <!-- JS로 하위 항목이 채워질 영역 -->
+        </div>
+      </section>
     </main>
 
   </div>
+
+  <!-- 기능 2: 상세설명 모달 (Dialog) -->
+  <dialog id="item-modal" class="max-w-md mx-auto p-0 rounded-lg shadow-xl backdrop:bg-black/50 w-11/12">
+    <div class="p-5">
+      <h3 id="modal-title" class="text-lg font-bold text-emerald-700"></h3>
+      <!-- whitespace-pre-wrap: \n (줄바꿈)을 인식하게 함 -->
+      <p id="modal-description" class="mt-2 text-sm text-gray-600 whitespace-pre-wrap"></p>
+      <button id="modal-close-btn" class="mt-4 w-full bg-emerald-600 text-white py-2 rounded-lg font-semibold hover:bg-emerald-700">
+        닫기
+      </button>
+    </div>
+  </dialog>
 
   <!-- JS 파일 로드 (body 닫기 직전) -->
   <script src="{{ url_for('static', filename='scripts/main.js') }}"></script>
