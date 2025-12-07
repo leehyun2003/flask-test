@@ -1,10 +1,10 @@
-console.log("JS 파일 로드됨 (기능 1, 2, 3 통합)");
+console.log("JS 파일 로드됨 (기능 1, 2, 3 통합 - DB 연동 버전)");
 
 // --------------------
-// 기능 1: 위치 기반 정보
+// 기능 1: 위치 기반 정보 (Reverse Geocoding)
 // --------------------
 
-// 1️⃣ 브라우저 위치 가져오기
+// 1️⃣ 브라우저 위치 가져오기 (유지)
 navigator.geolocation.getCurrentPosition(success, error);
 
 function success(position) {
@@ -20,7 +20,7 @@ function error(err) {
   document.getElementById("location-info-display").innerHTML = `<p class="text-center">📍 위치 정보를 가져올 수 없습니다.</p>`;
 }
 
-// 2️⃣ Flask 서버를 통해 Reverse Geocoding 실행
+// 2️⃣ Flask 서버를 통해 Reverse Geocoding 실행 (유지)
 async function getAddress(lat, lon) {
   console.log("서버로 Reverse Geocoding 요청 시작");
   try {
@@ -40,7 +40,6 @@ async function getAddress(lat, lon) {
 
     const city = address.state || "알수없음";
     let district = "";
-    // Nominatim 결과에서 시/군/구에 해당하는 적절한 키를 조합하여 district 생성
     if (address.county && address.city_district) {
       district = address.county + address.city_district;
     } else if (address.county) {
@@ -54,7 +53,8 @@ async function getAddress(lat, lon) {
     const districtKey = district.replace(/\s/g, "");
     console.log(`매칭 city: ${city}, district: ${district}, districtKey: ${districtKey}`);
 
-    loadRecycleInfo(city, districtKey, district);
+    // ✅ DB에서 위치 정보 및 가이드 정보를 모두 가져오는 함수 호출로 변경
+    loadRecycleInfoFromDB(city, districtKey, district);
 
   } catch (err) {
     console.error("Reverse Geocoding 중 오류:", err);
@@ -62,78 +62,80 @@ async function getAddress(lat, lon) {
   }
 }
 
-// 3️⃣ JSON 파일에서 분리수거 정보 가져오기
-async function loadRecycleInfo(city, districtKey, districtOriginal) {
-  console.log("JSON 데이터 로드 시작");
-  const container = document.getElementById("location-info-display");
-
-  try {
-    const res = await fetch("/static/data/recycle_info.json");
-    const data = await res.json();
-    console.log("JSON 데이터 불러옴:", data);
-
-    const info = data[city]?.[districtKey];
-
-    if (!info) {
-      container.innerHTML = `<p class="text-center">📍 ${city} ${districtOriginal} 지역의 데이터가 없습니다.</p>`;
-      return;
-    }
-
-    // 위치 정보를 헤더에 예쁘게 표시 (Tailwind CSS 활용)
-    container.innerHTML = `
-      <h3 class="font-semibold text-base mb-1">📍 ${city} ${districtOriginal}</h3>
-      <p class="text-xs"><strong>배출시간:</strong> ${info["배출시간"]}</p>
-      
-      <details class="mt-2 text-xs cursor-pointer">
-        <summary class="font-semibold">상세 정보 보기 (재활용품, 봉투)</summary>
-        
-        <div class="mt-1 p-2 bg-emerald-800/50 rounded">
-          <p class="font-semibold">재활용품:</p>
-          <ul class="mt-1 list-disc list-inside pl-2">
-            ${Object.entries(info["재활용품"]).map(([k, v]) => `<li>${k}: ${v}</li>`).join("")}
-          </ul>
-        </div>
-        
-        <div class="mt-1 p-2 bg-emerald-800/50 rounded">
-          <p class="font-semibold">봉투 색상:</p>
-          <ul class="mt-1 list-disc list-inside pl-2">
-            ${Object.entries(info["봉투색상"]).map(([k, v]) => `<li>${k}: ${v}</li>`).join("")}
-          </ul>
-        </div>
-      </details>
-    `;
-  } catch (err) {
-    console.error("JSON 로드 중 오류:", err);
-    container.innerHTML = `<p class="text-center">📍 분리수거 정보 로드 중 오류 발생.</p>`;
-  }
-}
-
-
-// --------------------
-// 기능 2: 카테고리별 분리수거 가이드
-// --------------------
-
+// 3️⃣ DB에서 분리수거 정보와 가이드 가져오기 (새로운 함수)
 let guideData = null; // 가이드 데이터 캐싱
 
-/**
- * 가이드 데이터 (JSON) 로드 및 초기화
- */
-async function loadDisposalGuide() {
-  console.log("기능 2: 가이드 데이터 로드 시작");
+async function loadRecycleInfoFromDB(city, districtKey, districtOriginal) {
+  console.log("DB 데이터 로드 시작: /get-recycle-info 호출");
+  const container = document.getElementById("location-info-display");
+  const categoryGrid = document.getElementById("category-grid");
+
   try {
-    const res = await fetch("/static/data/disposal_guide.json");
-    const data = await res.json(); 
-    guideData = data; 
-    console.log("가이드 데이터 로드 완료");
-    renderCategories(); // 카테고리 렌더링
+    // 서버의 새로운 엔드포인트 호출 (위치 정보 + 가이드 정보 통합)
+    const res = await fetch("/get-recycle-info", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ city: city, districtKey: districtKey })
+    });
+    
+    const data = await res.json();
+    console.log("DB 서버 응답 수신:", data);
+
+    const info = data.location_info; 
+    guideData = data.guide_data;     // DB에서 조회된 가이드 정보 저장
+
+    // A. 위치 정보 (location_info) 업데이트
+    if (!info) {
+      container.innerHTML = `<p class="text-center">📍 ${city} ${districtOriginal} 지역의 데이터가 없습니다.</p>`;
+    } else {
+      // 위치 정보를 헤더에 렌더링
+      container.innerHTML = `
+        <h3 class="font-semibold text-base mb-1">📍 ${city} ${districtOriginal}</h3>
+        <p class="text-xs"><strong>배출시간:</strong> ${info["배출시간"]}</p>
+        
+        <details class="mt-2 text-xs cursor-pointer">
+          <summary class="font-semibold">상세 정보 보기 (재활용품, 봉투)</summary>
+          
+          <div class="mt-1 p-2 bg-emerald-800/50 rounded">
+            <p class="font-semibold">재활용품:</p>
+            <ul class="mt-1 list-disc list-inside pl-2">
+              ${Object.entries(info["재활용품"]).map(([k, v]) => `<li>${k}: ${v}</li>`).join("")}
+            </ul>
+          </div>
+          
+          <div class="mt-1 p-2 bg-emerald-800/50 rounded">
+            <p class="font-semibold">봉투 색상:</p>
+            <ul class="mt-1 list-disc list-inside pl-2">
+              ${Object.entries(info["봉투색상"]).map(([k, v]) => `<li>${k}: ${v}</li>`).join("")}
+            </ul>
+          </div>
+        </details>
+      `;
+    }
+
+    // B. 가이드 정보 (guide_data) 업데이트
+    if (guideData && guideData.categories) {
+        renderCategories(); // 가이드 정보 렌더링
+    } else {
+        categoryGrid.innerHTML = `<p class="text-red-500 col-span-3">가이드 정보를 불러오는데 실패했습니다.</p>`;
+    }
+
   } catch (err) {
-    console.error("가이드 JSON 로드 중 오류:", err);
-    document.getElementById("category-grid").innerHTML = `<p class="text-red-500 col-span-3">가이드 정보를 불러오는데 실패했습니다.</p>`;
+    console.error("DB API 로드 중 오류:", err);
+    container.innerHTML = `<p class="text-center">📍 분리수거 정보 로드 중 오류 발생.</p>`;
+    categoryGrid.innerHTML = `<p class="text-red-500 col-span-3">가이드 정보를 불러오는데 실패했습니다.</p>`;
   }
 }
 
+
+// --------------------
+// 기능 2: 카테고리별 분리수거 가이드 (렌더링 함수 유지)
+// --------------------
+
+// ⚠️ 기존 loadDisposalGuide 함수는 loadRecycleInfoFromDB에 통합되었으므로 제거합니다.
+
 /**
- * 메인 카테고리를 렌더링
+ * 메인 카테고리를 렌더링 (유지)
  */
 function renderCategories() {
   const grid = document.getElementById("category-grid");
@@ -158,7 +160,7 @@ function renderCategories() {
 }
 
 /**
- * 특정 카테고리의 하위 항목들을 표시
+ * 특정 카테고리의 하위 항목들을 표시 (유지)
  */
 function showCategoryItems(categoryName) {
   const category = guideData.categories.find(c => c.name === categoryName);
@@ -202,7 +204,7 @@ function showCategoryItems(categoryName) {
 }
 
 /**
- * 모달에 아이템 상세 설명 표시
+ * 모달에 아이템 상세 설명 표시 (유지)
  */
 function showItemDescription(categoryName, itemName) {
   const category = guideData.categories.find(c => c.name === categoryName);
@@ -217,7 +219,7 @@ function showItemDescription(categoryName, itemName) {
 }
 
 /**
- * 모달 닫기
+ * 모달 닫기 (유지)
  */
 function closeModal() {
   const modal = document.getElementById("item-modal");
@@ -225,8 +227,9 @@ function closeModal() {
 }
 
 // --------------------
-// 기능 3: 카메라 연동 및 챗봇
+// 기능 3: 카메라 연동 및 챗봇 (유지)
 // --------------------
+// ... (기존 기능 3 코드 유지: cameraInput, openCameraBtn, analyzeBtn 관련 로직) ...
 
 const cameraInput = document.getElementById("camera-input");
 const openCameraBtn = document.getElementById("open-camera-btn");
@@ -235,50 +238,35 @@ const imagePreview = document.getElementById("image-preview");
 const analyzeBtn = document.getElementById("analyze-btn");
 const chatbotResponseContainer = document.getElementById("chatbot-response-container");
 
-let uploadedImageBase64 = null; // 업로드된 이미지의 Base64 데이터 URL을 저장할 변수
+let uploadedImageBase64 = null;
 
-/**
- * 사용자에게 이미지 파일을 선택하게 하거나 카메라를 엽니다.
- */
 openCameraBtn.addEventListener('click', () => {
     cameraInput.click(); 
 });
 
-/**
- * 파일이 선택되면 미리보기를 표시하고 분석 버튼을 활성화합니다.
- */
 cameraInput.addEventListener('change', (event) => {
     const file = event.target.files[0];
     if (file) {
-        // 1. 파일 리더를 사용하여 이미지를 Base64로 변환 (서버 전송용)
         const reader = new FileReader();
         reader.onload = function(e) {
-            uploadedImageBase64 = e.target.result; // Base64 데이터 URL 저장 (data:image/...)
-            
-            // 2. 미리보기 업데이트
+            uploadedImageBase64 = e.target.result;
             imagePreview.src = uploadedImageBase64;
             imagePreviewContainer.classList.remove('hidden');
-            
-            // 3. 분석 버튼 활성화 및 UI 업데이트
             analyzeBtn.classList.remove('hidden');
             analyzeBtn.disabled = false;
             analyzeBtn.innerText = "✨ 분리수거 방법 분석하기";
             chatbotResponseContainer.innerHTML = `<p class="text-gray-500 text-sm">이미지 준비 완료. 분석 버튼을 눌러주세요.</p>`;
         };
-        reader.readAsDataURL(file); // 파일을 Base64 데이터 URL로 읽기
+        reader.readAsDataURL(file);
     }
 });
 
-/**
- * 분석 버튼 클릭 이벤트: Flask 서버에 Base64 이미지를 전송합니다.
- */
 analyzeBtn.addEventListener('click', async () => {
     if (!uploadedImageBase64) {
         alert("먼저 이미지를 선택해 주세요.");
         return;
     }
 
-    // UI 상태: 로딩 시작
     analyzeBtn.disabled = true;
     analyzeBtn.innerText = "🔄 분석 중...";
     chatbotResponseContainer.innerHTML = `<p class="text-blue-500 font-medium">🤖 AI 챗봇이 분리수거 방법을 분석하고 있습니다. 잠시만 기다려주세요...</p>`;
@@ -295,9 +283,7 @@ analyzeBtn.addEventListener('click', async () => {
         });
 
         const data = await response.json();
-        console.log("챗봇 서버 응답:", data);
 
-        // UI 상태: 응답 처리
         analyzeBtn.disabled = false;
         analyzeBtn.innerText = "✨ 다시 분석하기";
         
@@ -306,7 +292,6 @@ analyzeBtn.addEventListener('click', async () => {
                 <h4 class="font-bold text-red-600 mb-1">❌ 오류 발생</h4>
                 <p class="text-sm text-red-500 whitespace-pre-wrap">${data.error}</p>
             `;
-            console.error("챗봇 오류:", data.error);
         } else {
             chatbotResponseContainer.innerHTML = `
                 <h4 class="font-bold text-emerald-700 mb-2">✅ 분리수거 방법 (AI 챗봇)</h4>
@@ -327,15 +312,13 @@ analyzeBtn.addEventListener('click', async () => {
 
 
 // --------------------
-// 초기화
+// 초기화 (유지)
 // --------------------
 document.addEventListener('DOMContentLoaded', () => {
-  // 모달 닫기 버튼 이벤트
   const modalCloseBtn = document.getElementById("modal-close-btn");
   if(modalCloseBtn) {
     modalCloseBtn.addEventListener('click', closeModal);
   }
   
-  // 기능 2(가이드) 데이터 로드 시작
-  loadDisposalGuide();
+  // loadDisposalGuide()는 loadRecycleInfoFromDB에 통합되었습니다.
 });
