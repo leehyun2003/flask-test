@@ -5,8 +5,8 @@ import json # JSON 데이터 대신 db_init.py에서 로드하기 위해 필요
 from flask import Flask, render_template, request, jsonify, g # g는 요청별 데이터 저장에 사용
 from openai import OpenAI 
 
-# OpenAI 클라이언트 초기화 (기존 코드 유지)
-client = OpenAI(api_key="") 
+# OpenAI 클라이언트 초기화
+client = OpenAI(api_key="YOUR_API_KEY") 
 
 app = Flask(__name__)
 DATABASE = 'smart_recycle.db'
@@ -215,7 +215,7 @@ def chatbot_analyze_image():
 
 if __name__ == "__main__":
     # DB 초기화 및 데이터 삽입을 위해 db_init.py 호출
-    from static.data.db_init import init_db_with_data
+    from static.data.db_init import init_db_with_data 
     with app.app_context():
         # 서버 시작 시 테이블 생성 및 데이터 삽입 (개발 환경용)
         init_db_with_data() 
