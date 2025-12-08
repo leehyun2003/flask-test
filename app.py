@@ -228,11 +228,11 @@ def chatbot_unified_chat():
     sources_to_return = []
     context = ""
     
-    # 이미지가 없고 텍스트 질문이 있는 경우에만 RAG (출처 검색) 수행
-    if not image_data_url and user_message:
+    # ✅ 수정된 조건: 이미지가 없고 메시지가 있으며, 메시지 길이가 3자 이상일 때만 검색 수행
+    if not image_data_url and user_message and len(user_message) >= 3:
         print(f"✅ Google 검색 수행 (RAG)")
         search_sources, search_error = get_google_search_results(user_message, count=3)
-        
+    
         if search_sources:
             context = "다음은 웹 검색 결과입니다. 이 정보를 활용하여 답변을 작성하세요:\n\n"
             for i, source in enumerate(search_sources):
@@ -242,6 +242,10 @@ def chatbot_unified_chat():
         else:
             # 검색 실패 시 오류 메시지를 출처로 반환
             sources_to_return = [{"title": f"검색 실패: {search_error or '키/CX ID 미설정'}", "url": "#"}]
+    else:
+        # 검색을 건너뛰거나 메시지 길이가 너무 짧은 경우, 출처를 비워둡니다.
+        print(f"✅ Google 검색 건너뜀 (이미지 첨부 또는 메시지 길이가 3자 미만)")
+        sources_to_return = []
     
     # -----------------------------
     # 2. 시스템 메시지 생성 (위치 정보 포함)
