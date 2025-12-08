@@ -22,7 +22,8 @@ const openCameraBtn = document.getElementById("open-camera-btn");
 const imagePreviewContainer = document.getElementById("image-preview-container");
 const imagePreview = document.getElementById("image-preview");
 const removeImageBtn = document.getElementById("remove-image-btn");
-
+const guideSearchInput = document.getElementById("guide-search-input");
+const guideSearchBtn = document.getElementById("guide-search-btn");
 // ----------------------------------------
 // 기능 1 & 2: 위치 및 가이드 정보 로드 (변경 없음)
 // ----------------------------------------
@@ -331,6 +332,59 @@ function removeImagePreview() {
 }
 
 
+/**
+ * 분리배출 가이드 검색을 처리하고, 해당 항목이 있는 카테고리로 이동합니다.
+ */
+function handleGuideSearch() {
+    const query = guideSearchInput.value.trim().toLowerCase();
+    if (!query || !guideData || !guideData.categories) return;
+
+    let foundItem = null;
+    let foundCategoryName = null;
+
+    // 모든 카테고리를 순회하며 항목 검색
+    for (const category of guideData.categories) {
+        foundItem = category.items.find(item => 
+            item.name.toLowerCase().includes(query)
+        );
+        if (foundItem) {
+            foundCategoryName = category.name;
+            break; 
+        }
+    }
+
+    if (foundItem) {
+        // 검색된 항목이 있으면 해당 카테고리 목록 화면으로 이동
+        showCategoryItems(foundCategoryName);
+        
+        // 검색된 항목으로 스크롤하고 강조 (옵션)
+        highlightItem(foundItem.name);
+        
+        // 검색창 초기화
+        guideSearchInput.value = '';
+    } else {
+        alert(`"${query}"에 해당하는 분리수거 물품을 찾을 수 없습니다.`);
+    }
+}
+
+/**
+ * 항목 목록에서 검색된 아이템을 강조하고 스크롤합니다.
+ */
+function highlightItem(itemName) {
+    const itemContainer = document.getElementById("item-list-container");
+    const itemDiv = itemContainer.querySelector(`[onclick*="showItemDescription('${itemName}')"]`);
+    
+    if (itemDiv) {
+        // 강조 효과 (예: 2초 동안 배경색 변경)
+        itemDiv.style.backgroundColor = '#d1fae5'; // 에메랄드-100
+        itemDiv.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        
+        setTimeout(() => {
+            itemDiv.style.backgroundColor = ''; // 원래 배경색으로 복귀 (CSS 클래스 hover:bg-gray-100가 적용됨)
+        }, 2000);
+    }
+}
+
 // --------------------
 // 유틸리티 함수
 // --------------------
@@ -409,4 +463,11 @@ document.addEventListener('DOMContentLoaded', () => {
   if(modalCloseBtn) {
     modalCloseBtn.addEventListener('click', closeModal);
   }
+
+  guideSearchBtn.addEventListener('click', handleGuideSearch);
+  guideSearchInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+          handleGuideSearch();
+      }
+    });
 });

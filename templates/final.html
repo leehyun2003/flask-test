@@ -52,6 +52,14 @@
       <section id="guide-section" class="space-y-4">
         <h2 class="text-xl font-semibold text-gray-800">분리배출 가이드</h2>
         
+        <div class="flex space-x-2">
+            <input type="text" id="guide-search-input" placeholder="물품 검색 (예: 페트병, 냄비)" 
+                   class="flex-1 border border-gray-300 p-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+            <button id="guide-search-btn" class="bg-emerald-500 text-white p-2 rounded-lg font-semibold hover:bg-emerald-600 transition shadow">
+                검색
+            </button>
+        </div>
+        
         <div id="category-grid" class="grid grid-cols-3 gap-3">
           <p class="text-gray-500 col-span-3">가이드 정보를 불러오는 중...</p>
         </div>
