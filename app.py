@@ -175,7 +175,7 @@ def get_recycle_info():
             items_list = []
             
             cursor.execute("""
-                SELECT name, description 
+                SELECT name, description ,image_path
                 FROM guide_item 
                 WHERE category_id = ? 
                 ORDER BY item_id
@@ -185,7 +185,8 @@ def get_recycle_info():
             for item in item_query:
                 items_list.append({
                     "name": item['name'],
-                    "description": item['description']
+                    "description": item['description'],
+                    "image_path": item['image_path']
                 })
             
             categories_list.append({

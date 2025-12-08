@@ -173,7 +173,14 @@ function showCategoryItems(categoryName) {
             ${category.items.map(item => `
                 <div class="p-3 bg-gray-50 rounded-lg shadow-sm flex justify-between items-center cursor-pointer hover:bg-gray-100 transition" 
                      onclick="showItemDescription('${categoryName}', '${item.name}')">
-                    <span class="font-medium">${item.name}</span>
+                    
+                    <div class="flex items-center space-x-3">
+                        ${item.image_path ?
+                            `<img src="${item.image_path}" alt="${item.name}" class="w-8 h-8 object-contain rounded"/>`
+                            : `<span class="w-8 h-8 text-xl flex items-center justify-center">📦</span>`}
+                        <span class="font-medium">${item.name}</span>
+                    </div>
+
                     <span class="text-emerald-500">자세히 보기 →</span>
                 </div>
             `).join('')}
@@ -192,7 +199,12 @@ function showItemDescription(categoryName, itemName) {
     const item = category.items.find(i => i.name === itemName);
 
     if (item) {
-        document.getElementById('modal-title').innerText = `${category.icon} ${item.name}`;
+        // ✅ 이미지 경로가 있으면 <img> 태그 사용, 없으면 카테고리 아이콘(이모지) 사용
+        const imageHtml = item.image_path 
+            ? `<img src="${item.image_path}" alt="${item.name}" class="inline-block w-6 h-6 mr-2 object-contain align-middle"/>` 
+            : `${category.icon} `; // 이미지 없으면 기존 카테고리 이모지 사용
+            
+        document.getElementById('modal-title').innerHTML = `${imageHtml} ${item.name}`;
         document.getElementById('modal-description').innerText = item.description;
         document.getElementById("item-modal").showModal();
     }
