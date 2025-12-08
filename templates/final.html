@@ -17,6 +17,23 @@
         max-width: 90%; 
         width: 448px; /* max-w-md */
     }
+    /* 챗봇 메시지 스타일 */
+    .user-message {
+      @apply bg-blue-500 text-white p-3 rounded-xl rounded-br-none max-w-[80%] self-end;
+    }
+    .chatbot-message {
+      @apply bg-gray-200 text-gray-800 p-3 rounded-xl rounded-tl-none max-w-[80%] self-start;
+    }
+    /* 스크롤바 숨기기 (선택 사항) */
+    #chat-messages-container {
+        max-height: 400px;
+        overflow-y: auto;
+    }
+    /* 이미지 미리보기 컨테이너 스타일 */
+    #image-preview-container {
+      position: relative; /* X 버튼을 절대 위치로 지정하기 위해 부모를 상대 위치로 설정 */
+      min-height: 50px;
+    }
   </style>
 </head>
 <body class="bg-gray-100 min-h-screen">
@@ -46,27 +63,40 @@
       <hr class="my-6 border-gray-200" />
       
       <section id="chatbot-section" class="space-y-4">
-        <h2 class="text-xl font-semibold text-gray-800">📸 이미지로 물품 분석 (챗봇)</h2>
+        <h2 class="text-xl font-semibold text-gray-800">🤖 AI 챗봇과 쉽게 분리수거해요</h2>
+        <p class="text-sm text-gray-500 mb-4">이미지를 첨부하거나 직접 질문하여 분리수거 방법을 확인하세요.</p>
         
-        <div class="flex flex-col space-y-3">
-          <input type="file" id="camera-input" accept="image/*" capture="environment" class="hidden" />
+        <div id="chat-interface" class="interface-content space-y-4 pt-4">
           
-          <button id="open-camera-btn" class="w-full bg-blue-500 text-white py-3 rounded-lg font-semibold hover:bg-blue-600 transition shadow">
-            📸 카메라/갤러리 열기
-          </button>
-          
-          <div id="image-preview-container" class="hidden bg-gray-200 rounded-lg p-2 flex justify-center items-center min-h-[150px]">
-            <img id="image-preview" class="max-h-60 rounded-lg object-contain" alt="선택된 이미지 미리보기" />
+          <div id="chat-messages-container" class="flex flex-col space-y-4 p-3 bg-gray-50 rounded-lg min-h-[150px] overflow-y-auto">
+             <div class="chatbot-message">안녕하세요! 분리수거에 대해 궁금한 점을 무엇이든 물어보세요.</div>
           </div>
-          
-          <button id="analyze-btn" class="w-full bg-emerald-500 text-white py-3 rounded-lg font-semibold hover:bg-emerald-600 transition shadow hidden" disabled>
-            ✨ 분리수거 방법 분석하기
-          </button>
-        </div>
 
-        <div id="chatbot-response-container" class="bg-gray-50 p-4 rounded-lg shadow-inner min-h-[100px]">
-          <p class="text-gray-500 text-sm">이미지를 선택하고 '분석하기' 버튼을 눌러주세요.</p>
+          <div id="image-preview-container" class="hidden relative bg-gray-200 rounded-lg p-2 flex justify-center items-center">
+              <img id="image-preview" class="max-h-32 rounded-lg object-contain" alt="선택된 이미지 미리보기" />
+              <button id="remove-image-btn" class="absolute top-1 right-1 bg-red-500 text-white rounded-full w-6 h-6 text-xs font-bold hover:bg-red-600 shadow-md">X</button>
           </div>
+          
+          <div class="flex space-x-2 relative items-center">
+              <input type="file" id="camera-input" accept="image/*" capture="environment" class="hidden" />
+              
+              <button id="open-camera-btn" class="bg-gray-300 text-gray-700 p-3 rounded-lg font-semibold hover:bg-gray-400 transition shadow">
+                  📸
+              </button>
+              
+              <input type="text" id="chat-input" placeholder="분리수거에 대해 질문해 주세요..." class="flex-1 border border-gray-300 p-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+              <button id="send-chat-btn" class="bg-emerald-500 text-white p-3 rounded-lg font-semibold hover:bg-emerald-600 transition shadow">
+                전송
+              </button>
+          </div>
+
+          <div id="chatbot-source-container" class="mt-4 p-3 bg-yellow-100 border border-yellow-300 rounded-lg text-xs hidden">
+            <h4 class="font-bold text-yellow-800 mb-1">🔍 답변 출처</h4>
+            <div id="source-list" class="space-y-1">
+              </div>
+          </div>
+        </div>
+        
       </section>
 
 

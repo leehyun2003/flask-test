@@ -1,40 +1,88 @@
 import requests
 import os
 import sqlite3
-import json # JSON 데이터 대신 db_init.py에서 로드하기 위해 필요
-from flask import Flask, render_template, request, jsonify, g # g는 요청별 데이터 저장에 사용
+import json 
+from flask import Flask, render_template, request, jsonify, g 
 from openai import OpenAI 
 
-# OpenAI 클라이언트 초기화
-client = OpenAI(api_key="YOUR_API_KEY") 
+# ----------------------------------------
+# ✅ 환경 변수 및 API 클라이언트 초기화
+# ----------------------------------------
+openai_api_key = os.environ.get("OPENAI_API_KEY")
+GOOGLE_API_KEY = os.environ.get("GOOGLE_API_KEY")
+GOOGLE_CSE_CX = os.environ.get("GOOGLE_CSE_CX")
+GOOGLE_SEARCH_URL = "https://www.googleapis.com/customsearch/v1"
+
+# API 키가 설정되지 않은 경우 경고/오류 처리 (강화)
+if not openai_api_key:
+    print("❌ 치명적 오류: OPENAI_API_KEY 환경 변수가 설정되지 않았습니다.")
+if not GOOGLE_API_KEY or not GOOGLE_CSE_CX:
+    print("❌ 경고: Google Search API 키 또는 CX ID가 설정되지 않았습니다. 챗봇 출처 기능이 작동하지 않을 수 있습니다.")
+    
+client = OpenAI(api_key=openai_api_key) 
 
 app = Flask(__name__)
 DATABASE = 'smart_recycle.db'
 
-# --------------------
-# ✅ DB 연결 관리 함수 (sqlite3)
-# --------------------
+# ----------------------------------------
+# DB 연결 관리 함수 (sqlite3)
+# ----------------------------------------
 
 def get_db():
-    # 요청 컨텍스트(g)에 DB 연결이 없으면 새로 생성합니다.
     db = getattr(g, '_database', None)
     if db is None:
         db = g._database = sqlite3.connect(DATABASE)
-        # 딕셔너리 형태로 결과를 반환하도록 설정
         db.row_factory = sqlite3.Row 
     return db
 
 @app.teardown_appcontext
 def close_connection(exception):
-    # 요청 처리가 끝나면 DB 연결을 닫습니다.
     db = getattr(g, '_database', None)
     if db is not None:
         db.close()
 
 
-# --------------------
+# ----------------------------------------
+# ✅ Google CSE 검색 함수 (RAG Context 생성)
+# ----------------------------------------
+def get_google_search_results(query, count=3):
+    """Google Custom Search API를 호출하여 검색 결과의 제목과 URL을 반환합니다."""
+    if not GOOGLE_API_KEY or not GOOGLE_CSE_CX:
+        return [], "Google API 키 또는 CX ID 없음"
+
+    params = {
+        "key": GOOGLE_API_KEY,
+        "cx": GOOGLE_CSE_CX,
+        "q": query,
+        "num": count,  # 가져올 결과 개수
+    }
+
+    try:
+        response = requests.get(GOOGLE_SEARCH_URL, params=params)
+        response.raise_for_status() 
+        search_results = response.json()
+        
+        sources = []
+        if 'items' in search_results:
+            for result in search_results['items']:
+                sources.append({
+                    "title": result.get('title', '제목 없음'),
+                    "url": result.get('link', '#'),
+                    "snippet": result.get('snippet', '') # 스니펫은 챗봇에게 주입할 정보
+                })
+        return sources, None
+    except requests.exceptions.HTTPError as http_err:
+        error_msg = f"HTTP 오류 발생 ({response.status_code}): {response.text}"
+        print(f"❌ Google CSE API HTTP 오류: {error_msg}")
+        return [], error_msg
+    except Exception as e:
+        print(f"❌ Google CSE API 일반 오류: {e}")
+        return [], str(e)
+
+
+# ----------------------------------------
 # ✅ 엔드포인트 정의
-# --------------------
+# ----------------------------------------
 
 @app.route("/")
 def index():
@@ -45,15 +93,12 @@ def final():
     """메인 스마트 분리수거 페이지 렌더링"""
     return render_template("final.html", title="♻️ 스마트 분리수거")
 
-# --------------------
-# ✅ 기능 1: 위치 기반 정보 (Reverse Geocoding) - 기존 코드 유지
-# --------------------
+# 기능 1: 위치 기반 정보 (Reverse Geocoding)
 @app.post("/reverse-geocode")
 def reverse_geocode():
     data = request.get_json()
     lat = data.get("latitude")
     lon = data.get("longitude")
-    # ... (기존 Reverse Geocoding 로직 유지) ...
     url = f"https://nominatim.openstreetmap.org/reverse"
     params = {
         "lat": lat,
@@ -71,9 +116,7 @@ def reverse_geocode():
         return jsonify({"error": str(e)}), 500
 
 
-# --------------------
-# ✅ 기능 1 & 2: DB에서 정보 조회하는 새로운 엔드포인트 (Pure SQL)
-# --------------------
+# 기능 1 & 2: DB에서 정보 조회하는 엔드포인트
 @app.post("/get-recycle-info")
 def get_recycle_info():
     """main.js에서 받은 지역명과 가이드 정보를 DB에서 조회하여 반환"""
@@ -87,7 +130,6 @@ def get_recycle_info():
     
     try:
         # 1. 지역별 분리수거 기본 정보 조회 (CITY_DISTRICT)
-        # SQLite에서 LIKE 연산자를 사용하여 부분 일치 및 대소문자 구분 없이 검색
         cursor.execute("""
             SELECT district_id, discharge_time
             FROM city_district
@@ -165,53 +207,102 @@ def get_recycle_info():
         return jsonify({"error": f"데이터베이스 조회 중 오류가 발생했습니다: {str(e)}"}), 500
 
 
-# --------------------
-# ✅ 기능 3: 챗봇 이미지 분석 (OpenAI Vision API) - 기존 코드 유지
-# --------------------
-@app.post("/chatbot-analyze-image")
-def chatbot_analyze_image():
-    # ... (기존 chatbot_analyze_image 함수 코드 유지) ...
+
+# ----------------------------------------
+# ✅ 통합된 챗봇 엔드포인트 (/chatbot-unified-chat)
+# ----------------------------------------
+@app.post("/chatbot-unified-chat")
+def chatbot_unified_chat():
     data = request.get_json()
-    image_data_url = data.get("image_data_url")
+    user_message = data.get("message")
+    image_data_url = data.get("image_data_url") # Base64 이미지 데이터 (선택 사항)
+    user_location = data.get("location")       # 위치 정보 (선택 사항)
 
-    if not image_data_url:
-        return jsonify({"error": "이미지 데이터가 없습니다."}), 400
-
-    image_url_for_api = image_data_url 
-
-    print("✅ OpenAI Vision API 호출 시작...")
-
+    if not user_message and not image_data_url:
+        return jsonify({"error": "메시지 또는 이미지가 없습니다."}), 400
+    
+    # -----------------------------
+    # 1. Google CSE 검색 (이미지가 없을 때만 수행 - 텍스트 질문에 대한 출처 확보)
+    # -----------------------------
+    search_sources = []
+    sources_to_return = []
+    context = ""
+    
+    # 이미지가 없고 텍스트 질문이 있는 경우에만 RAG (출처 검색) 수행
+    if not image_data_url and user_message:
+        print(f"✅ Google 검색 수행 (RAG)")
+        search_sources, search_error = get_google_search_results(user_message, count=3)
+        
+        if search_sources:
+            context = "다음은 웹 검색 결과입니다. 이 정보를 활용하여 답변을 작성하세요:\n\n"
+            for i, source in enumerate(search_sources):
+                context += f"[{i+1}] {source['snippet']}\n"
+            # 출처 정보를 반환 객체에 맞게 포맷팅
+            sources_to_return = [{"title": s['title'], "url": s['url']} for s in search_sources]
+        else:
+            # 검색 실패 시 오류 메시지를 출처로 반환
+            sources_to_return = [{"title": f"검색 실패: {search_error or '키/CX ID 미설정'}", "url": "#"}]
+    
+    # -----------------------------
+    # 2. 시스템 메시지 생성 (위치 정보 포함)
+    # -----------------------------
+    system_content = "당신은 분리수거 전문가 챗봇입니다. 한국의 최신 분리수거 기준을 고려하여 답변해 주세요. "
+    
+    # 위치 정보 추가 (텍스트/이미지 분석 모두에 적용)
+    if user_location and user_location != "알수없음":
+         system_content += f"사용자의 현재 위치는 '{user_location}'입니다. 가능한 경우 이 지역의 규정을 참고하여 답변하세요. "
+    
+    # RAG 컨텍스트 추가 (텍스트 대화 시)
+    system_content += context
+        
+    # -----------------------------
+    # 3. OpenAI API 호출 (이미지 유무에 따라 분기)
+    # -----------------------------
     try:
+        messages = [{"role": "system", "content": system_content}]
+        user_content = []
+
+        if image_data_url:
+            print("✅ Vision API 호출 (이미지 분석 포함)")
+            # 이미지 분석 시스템 프롬프트 추가
+            image_system_prompt = "이미지 속 물품을 분석하고, 해당 물품의 정확한 분리수거 방법(씻기/분리/배출)을 한국어로 상세하게 안내해 주세요. 물품 인식이 어렵거나 분리수거 대상이 아닌 경우에도 간결하게 답변해 주세요."
+            messages[0]["content"] += image_system_prompt
+            
+            # 사용자 메시지에 이미지 URL과 텍스트 모두 추가
+            user_content.append({"type": "text", "text": user_message or "이 물건을 어떻게 분리수거해야 하나요?"})
+            user_content.append({"type": "image_url", "image_url": {"url": image_data_url}})
+        else:
+            print("✅ Standard Chat API 호출 (텍스트 기반)")
+            user_content.append({"type": "text", "text": user_message})
+
+        messages.append({"role": "user", "content": user_content})
+
         response = client.chat.completions.create(
-            model="gpt-4o", 
-            messages=[
-                {
-                    "role": "system",
-                    "content": "당신은 스마트 분리수거 챗봇입니다. 사용자가 올린 이미지 속 물품을 분석하고, 해당 물품의 정확한 분리수거 방법(씻기/분리/배출)을 **한국어**로 상세하게 안내해 주세요. 답변은 분리수거 방법만 명료하게 제공하고, 인사말이나 불필요한 서론은 생략해 주세요. 물품 인식이 어렵거나 분리수거 대상이 아닌 경우에도 간결하게 답변해 주세요."
-                },
-                {
-                    "role": "user",
-                    "content": [
-                        {"type": "text", "text": "이 물건을 어떻게 분리수거해야 하나요?"},
-                        {
-                            "type": "image_url",
-                            "image_url": {"url": image_url_for_api} 
-                        },
-                    ],
-                }
-            ],
-            max_tokens=500,
+            model="gpt-4o",
+            messages=messages,
+            max_tokens=1000,
         )
 
         chatbot_response = response.choices[0].message.content
+        
+        # 이미지 분석 시에는 출처가 없으므로 빈 배열을 반환
+        if image_data_url:
+            sources_to_return = []
+
         return jsonify({
             "response": chatbot_response,
+            "sources": sources_to_return,
             "status": "success"
         })
 
     except Exception as e:
-        print("❌ OpenAI API 호출 중 오류:", e)
-        return jsonify({"error": f"챗봇 API 호출 중 오류가 발생했습니다: {str(e)}"}), 500
+        print("❌ 챗봇 API 호출 중 오류:", e)
+        # 이미지 분석 시 발생한 오류라면 출처를 제공하지 않음
+        sources_to_return = [] if image_data_url else sources_to_return
+        return jsonify({
+            "error": f"챗봇 API 호출 중 오류가 발생했습니다: {str(e)}",
+            "sources": sources_to_return # 텍스트 모드였으면 검색 실패 정보를 반환
+        }), 500
 
 if __name__ == "__main__":
     # DB 초기화 및 데이터 삽입을 위해 db_init.py 호출
