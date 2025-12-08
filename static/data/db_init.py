@@ -144,7 +144,7 @@ DISPOSAL_GUIDE_DATA = {
       "items": [
         {
           "name": "헌 옷",
-          "image_path":"/static/images/헌 옷.jpg",
+          "image_path":"/static/images/헌 옷.jpeg",
           "description": "깨끗하고 재사용 가능한 옷은 '의류 수거함'에 배출합니다.\n\n*주의: 솜이불, 베개, 방석, 캐리어, 롤러스케이트, 젖은 의류 등은 의류 수거함에 넣으면 안 됩니다. 이불은 대형 폐기물 또는 일반 쓰레기로, 신발은 상태가 좋으면 신발만 따로 모아 배출합니다."
         },
         {
